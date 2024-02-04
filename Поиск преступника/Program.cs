@@ -8,7 +8,9 @@ namespace Поиск_преступника
     {
         static void Main()
         {
-            int dossierQuantity = 20;
+            Console.CursorVisible = false;
+
+            int dossierQuantity = 40;
 
             List<CriminalDossier> criminalDossiers = new List<CriminalDossier>();
             CriminalDossierFabrik criminalsDossierFabrik = new CriminalDossierFabrik();
@@ -47,8 +49,9 @@ namespace Поиск_преступника
         private List<string> _surnames;
         private List<string> _nationalities;
 
-        private int[] _heightStats = { 165, 180 };
-        private int[] _weightStats = { 80, 140 };
+        private int[] _heightStats = { 175, 180 };
+        private int[] _weightStats = { 80, 85 };
+        private bool[] _states = { true, false };
 
         private Random _random = new Random();
 
@@ -70,7 +73,7 @@ namespace Поиск_преступника
             int height = _random.Next(_heightStats[0], _heightStats[1]);
             int weight = _random.Next(_weightStats[0], _weightStats[1]);
 
-            bool isInJail = 0 == _random.Next(2);
+            bool isInJail = _states[_random.Next(_states.Length)];
 
             return new CriminalDossier(fullName, nationality, height, weight, isInJail);
         }
@@ -116,46 +119,56 @@ namespace Поиск_преступника
         public ActionBuilder(List<CriminalDossier> criminalDossiers) =>
             _criminalDossiers = criminalDossiers;
 
-        public Dictionary<string, Action> GiveMenuActions()
-        {
-            return new Dictionary<string, Action>()
+        public Dictionary<string, Action> GiveMenuActions() =>
+            new Dictionary<string, Action>()
             {
-                { "Найти досье по имени", FindByName },
-                { "Найти досье по росту", FindByHeight },
-                { "Найти досье по весу", FindByWeight},
-                { "Найти досье по национальности" , FindByNationality}
+                { "Найти досье", SortDossiers }
             };
+
+        private void SortDossiers()
+        {
+            List<CriminalDossier> dossiers = new List<CriminalDossier>();
+
+            dossiers = FindByName(_criminalDossiers);
+
+            dossiers = FindByNationality(dossiers);
+
+            dossiers = FindByHeight(dossiers);
+
+            dossiers = FindByWeight(dossiers);
+
+            WriteResult(dossiers);
         }
 
-        private void FindByNationality()
+        private List<CriminalDossier> FindByNationality(List<CriminalDossier> dossiers)
         {
             string searchDescription = "национальность";
 
-            SearchInRealTime(searchDescription, IsNationalityInDossier, AddNationalityAction);
+            List<CriminalDossier> dossiersResult = SearchInRealTime(dossiers, searchDescription, IsNationalityInDossier, AddNationalityAction);
 
-            Console.Clear();
+            return dossiersResult;
         }
 
-        private void FindByWeight()
+        private List<CriminalDossier> FindByWeight(List<CriminalDossier> dossiers)
         {
             string parameterName = "вес";
             int weight = ReadInt(parameterName);
 
-            List<CriminalDossier> dossiers =
-                _criminalDossiers.FindAll(dossier => dossier.Weight == weight && dossier.IsInJail == false);
+            List<CriminalDossier> dossiersResult =
+                dossiers.FindAll(dossier => dossier.Weight == weight && dossier.IsInJail == false);
 
-            WriteResult(dossiers);
+            return dossiersResult;
         }
 
-        private void FindByHeight()
+        private List<CriminalDossier> FindByHeight(List<CriminalDossier> dossiers)
         {
             string parameterName = "рост";
             int height = ReadInt(parameterName);
 
-            List<CriminalDossier> dossiers =
-                _criminalDossiers.FindAll(dossier => dossier.Height == height && dossier.IsInJail == false);
+            List<CriminalDossier> dossiersResult =
+                dossiers.FindAll(dossier => dossier.Height == height && dossier.IsInJail == false);
 
-            WriteResult(dossiers);
+            return dossiersResult;
         }
 
         private int ReadInt(string parameterName)
@@ -184,18 +197,17 @@ namespace Поиск_преступника
             Console.Write(text);
         }
 
-        private void FindByName()
+        private List<CriminalDossier> FindByName(List<CriminalDossier> dossiers)
         {
             string searchDescription = "имя";
 
-            SearchInRealTime(searchDescription, IsNameInDossier, AddNameAction);
+            dossiers = SearchInRealTime(dossiers, searchDescription, IsNameInDossier, AddNameAction);
 
-            Console.Clear();
+            return dossiers;
         }
 
-        private void SearchInRealTime(string searchDescription, Func<CriminalDossier, string, bool> matchPredicate, Action<List<string>, CriminalDossier> addingParameterAction)
+        private List<CriminalDossier> SearchInRealTime(List<CriminalDossier> dossiers, string searchDescription, Func<CriminalDossier, string, bool> matchPredicate, Action<List<string>, CriminalDossier> addingParameterAction)
         {
-            const char ExitButton = (char)ConsoleKey.Escape;
             const char ConfirmButton = (char)ConsoleKey.Enter;
             const char EraseButton = (char)ConsoleKey.Backspace;
 
@@ -213,10 +225,11 @@ namespace Поиск_преступника
 
             bool isRunning = true;
 
-            List<CriminalDossier> dossiers = new List<CriminalDossier>();
+            List<CriminalDossier> dossiersResult = new List<CriminalDossier>();
             List<string> result = new List<string>();
 
             Console.Clear();
+            Console.CursorVisible = true;
 
             while (isRunning)
             {
@@ -228,12 +241,8 @@ namespace Поиск_преступника
 
                 switch (input)
                 {
-                    case ExitButton:
-                        isRunning = Exit();
-                        break;
-
                     case ConfirmButton:
-                        WriteResult(dossiers);
+                        isRunning = false;
                         break;
 
                     case EraseButton:
@@ -248,21 +257,26 @@ namespace Поиск_преступника
                 if (inputText == space)
                     DeleteLastSymbol(inputText);
 
-                dossiers =
-                    _criminalDossiers.FindAll(dossier => matchPredicate(dossier, inputText) && dossier.IsInJail == false);
+                dossiersResult =
+                    dossiers.FindAll(dossier => matchPredicate(dossier, inputText) && dossier.IsInJail == false);
 
-                if (dossiers.Count != currentDossiersCount)
+                if (dossiersResult.Count != currentDossiersCount)
                 {
                     EraseSearchInfo(resultMessage, currentDossiersCount, dossiersCursorPositionY);
-                    currentDossiersCount = dossiers.Count;
+                    currentDossiersCount = dossiersResult.Count;
                 }
 
                 result.Clear();
-                dossiers.ForEach(dossier => addingParameterAction(result, dossier));
+                dossiersResult.ForEach(dossier => addingParameterAction(result, dossier));
                 result = result.Distinct().ToList();
 
                 WriteSearchInfo(resultMessage, result, dossiersCursorPositionY);
             }
+
+            Console.CursorVisible = false;
+            Console.Clear();
+
+            return dossiersResult;
         }
 
         private void AddNameAction(List<string> result, CriminalDossier dossier) =>
@@ -333,13 +347,6 @@ namespace Поиск_преступника
             Console.WriteLine("\nДля продолжения нажмите любую кнопку.");
             Console.ReadKey(true);
             Console.Clear();
-        }
-
-        private bool Exit()
-        {
-            Console.Clear();
-
-            return false;
         }
     }
 
