@@ -8,78 +8,80 @@ namespace Поиск_преступника
     {
         static void Main()
         {
-            Console.CursorVisible = false;
-
             int dossierQuantity = 40;
 
-            List<CriminalDossier> criminalDossiers = new List<CriminalDossier>();
-            CriminalDossierFabrik criminalsDossierFabrik = new CriminalDossierFabrik();
+            DossierFactory criminalsDossierFabrik = new DossierFactory();
+            List<Dossier> dossiers = criminalsDossierFabrik.Create(dossierQuantity);
 
-            for (int i = 0; i < dossierQuantity; i++)
-                criminalDossiers.Add(criminalsDossierFabrik.CreateDossier());
+            Searcher searcher = new Searcher();
 
-            ActionBuilder actionBuilder = new ActionBuilder(criminalDossiers);
-            Menu menu = new Menu(actionBuilder.GiveMenuActions());
-
-            menu.Work();
+            searcher.FindDossier(dossiers);
         }
     }
 
-    class CriminalDossier
+    class Dossier
     {
-        public CriminalDossier(string fullName, string nationality, int height, int weight, bool isInJail)
+        public Dossier(string fullName, string nationality, int height, int weight, bool isImprisoned)
         {
             FullName = fullName;
             Nationality = nationality;
             Height = height;
             Weight = weight;
-            IsInJail = isInJail;
+            IsImprisoned = isImprisoned;
         }
 
-        public string FullName { get; private set; }
-        public string Nationality { get; private set; }
-        public int Height { get; private set; }
-        public int Weight { get; private set; }
-        public bool IsInJail { get; private set; }
+        public string FullName { get; }
+        public string Nationality { get; }
+        public int Height { get; }
+        public int Weight { get; }
+        public bool IsImprisoned { get; }
+
+        public void WriteInfo()
+        {
+            const int ShortOffset = -5;
+            const int MediumOffset = -10;
+            const int LongOffset = -20;
+
+            string imprisonedStatus = IsImprisoned ? "в тюрьме" : "на воле";
+
+            Console.WriteLine($"{FullName,LongOffset}{Nationality,MediumOffset} Рост: {Height,ShortOffset} Вес: {Weight,ShortOffset} Нахождение: {imprisonedStatus}.");
+        }
     }
 
-    class CriminalDossierFabrik
+    class DossierFactory
     {
-        private List<string> _names;
-        private List<string> _surnames;
-        private List<string> _nationalities;
-
-        private int[] _heightStats = { 175, 176 };
-        private int[] _weightStats = { 80, 81 };
-        private bool[] _states = { true, false };
-
-        private Random _random = new Random();
-
-        public CriminalDossierFabrik()
+        public List<Dossier> Create(int quantity)
         {
-            FillNames();
-            FillSurnames();
-            FillNationalities();
+            int[] weightStats = { 70, 90 };
+            int[] heightStats = { 165, 180 };
+
+            List<Dossier> dossiers = new List<Dossier>();
+
+            for (int i = 0; i < quantity; i++)
+            {
+                string nationality = UserUtils.GenerateRandomValue(GetNationalities());
+
+                int height = UserUtils.GenerateStat(heightStats);
+                int weight = UserUtils.GenerateStat(weightStats);
+
+                bool isImprisoned = UserUtils.GenerateBool();
+
+                dossiers.Add(new Dossier(GetFullName(), nationality, height, weight, isImprisoned));
+            }
+
+            return dossiers;
         }
 
-        public CriminalDossier CreateDossier()
+        private string GetFullName()
         {
-            string name = _names[_random.Next(0, _names.Count)];
-            string surname = _surnames[_random.Next(_surnames.Count)];
-            string fullName = $"{name} {surname}";
+            string name = UserUtils.GenerateRandomValue(GetNames());
+            string surname = UserUtils.GenerateRandomValue(GetSurnames());
 
-            string nationality = _nationalities[_random.Next(_nationalities.Count)];
-
-            int height = _random.Next(_heightStats[0], _heightStats[1]);
-            int weight = _random.Next(_weightStats[0], _weightStats[1]);
-
-            bool isInJail = _states[_random.Next(_states.Length)];
-
-            return new CriminalDossier(fullName, nationality, height, weight, isInJail);
+            return $"{name} {surname}";
         }
 
-        private void FillNames() =>
-            _names = new List<string>
+        private List<string> GetNames() =>
+            new List<string>
             {
                 "Геннадий",
                 "Дмитрий",
@@ -89,8 +91,8 @@ namespace Поиск_преступника
                 "Михаил"
             };
 
-        private void FillSurnames() =>
-            _surnames = new List<string>
+        private List<string> GetSurnames() =>
+            new List<string>
             {
                 "Немичев",
                 "Величко",
@@ -101,8 +103,8 @@ namespace Поиск_преступника
                 "Мамонов"
             };
 
-        private void FillNationalities() =>
-            _nationalities = new List<string>
+        private List<string> GetNationalities() =>
+            new List<string>
             {
                 "Русский",
                 "Татарин",
@@ -112,171 +114,96 @@ namespace Поиск_преступника
             };
     }
 
-    class ActionBuilder
+    class Searcher
     {
-        private List<CriminalDossier> _criminalDossiers;
-
-        public ActionBuilder(List<CriminalDossier> criminalDossiers) =>
-            _criminalDossiers = criminalDossiers;
-
-        public Dictionary<string, Action> GiveMenuActions() =>
-            new Dictionary<string, Action>()
-            {
-                { "Найти досье", FindDossier }
-            };
-
-        private void FindDossier()
+        public void FindDossier(List<Dossier> dossiers)
         {
-            string nationality = ReadString("национальность");
-            int weight = ReadInt("вес");
-            int height = ReadInt("рост");
+            WriteDossiersInfo(dossiers, "Список досье:");
 
-            IEnumerable<CriminalDossier> filteredDossiers = _criminalDossiers.Where(
-                dossier =>
-                dossier.Nationality.ToLower().Contains(nationality.ToLower())
-                && dossier.Weight == weight
-                && dossier.Height == height
-                && dossier.IsInJail == false);
+            string nationality = UserUtils.ReadString("национальность");
+            int height = UserUtils.ReadInt("рост");
+            int weight = UserUtils.ReadInt("вес");
+
+            List<Dossier> filteredDossiers = dossiers.Where(dossier =>
+                dossier.Nationality.ToLower().Contains(nationality.ToLower()) &&
+                dossier.Weight == weight &&
+                dossier.Height == height &&
+                dossier.IsImprisoned == false).ToList();
 
             WriteSearchResult(filteredDossiers);
         }
 
-        private void WriteSearchResult(IEnumerable<CriminalDossier> filteredDossiers)
+        private void WriteSearchResult(List<Dossier> filteredDossiers)
         {
-            Console.Clear();
+            Console.WriteLine();
 
             if (filteredDossiers.Count() == 0)
             {
-                WriteMessage("Досье с такими параметрами не найдено.\nНажмите любую кнопку...");
-                Console.ReadKey(true);
-                Console.Clear();
+                Console.WriteLine("Досье с такими параметрами не найдено.");
 
                 return;
             }
 
-            foreach (var dossier in filteredDossiers)
-                Console.WriteLine(
-                    $"{dossier.FullName}\n" +
-                    $"Национальность - {dossier.Nationality}\n" +
-                    $"Рост - {dossier.Height}, Вес - {dossier.Weight}.\n");
-
-            Console.WriteLine("\nДля продолжения нажмите любую кнопку.");
-            Console.ReadKey(true);
-            Console.Clear();
+            WriteDossiersInfo(filteredDossiers, "Найденные досье:");
         }
 
-        private void WriteMessage(string text)
+        private void WriteDossiersInfo(List<Dossier> dossiers, string text)
         {
-            Console.Clear();
-            Console.Write(text);
+            Console.WriteLine(text);
+            dossiers.ForEach(dossier => dossier.WriteInfo());
+            Console.WriteLine();
         }
+    }
 
-        private string ReadString(string parameter)
+    static class UserUtils
+    {
+        private static Random s_random = new Random();
+
+        public static string ReadString(string parameter)
         {
-            WriteMessage($"Введите {parameter} преступника: ");
+            Console.Write($"Введите {parameter} преступника: ");
 
             return Console.ReadLine();
         }
 
-        private int ReadInt(string parameter)
+        public static int ReadInt(string parameter)
         {
             int number;
-            string userInput = ReadString(parameter);
+            string input;
 
-            while (int.TryParse(userInput, out number) == false)
-                userInput = ReadString(parameter);
+            do
+            {
+                input = ReadString(parameter);
+            }
+            while (int.TryParse(input, out number) == false);
 
             return number;
         }
-    }
 
-    class Menu
-    {
-        private const ConsoleKey MoveSelectionUp = ConsoleKey.UpArrow;
-        private const ConsoleKey MoveSelectionDown = ConsoleKey.DownArrow;
-        private const ConsoleKey ConfirmSelection = ConsoleKey.Enter;
-
-        private ConsoleColor _backgroundColor = ConsoleColor.White;
-        private ConsoleColor _foregroundColor = ConsoleColor.Black;
-
-        private int _itemIndex = 0;
-        private bool _isRunning;
-        private string[] _items;
-
-        private Dictionary<string, Action> _actions = new Dictionary<string, Action>();
-
-        public Menu(Dictionary<string, Action> actions)
+        public static T GenerateRandomValue<T>(IEnumerable<T> values)
         {
-            _actions = actions;
-            _actions.Add("Выход", Exit);
-            _items = _actions.Keys.ToArray();
+            int index = s_random.Next(values.Count());
+
+            return values.ElementAt(index);
         }
 
-        public void Work()
+        public static int GenerateStat(int[] stats)
         {
-            _isRunning = true;
+            int maxLength = 2;
 
-            while (_isRunning)
+            if (stats.Length != maxLength)
             {
-                DrawItems();
-
-                ReadKey();
+                throw new ArgumentException("Массив stats должен содержать ровно 2 элемента.");
             }
+
+            return s_random.Next(stats[0], stats[1] + 1);
         }
 
-        private void SetItemIndex(int index)
+        public static bool GenerateBool()
         {
-            int lastIndex = _items.Length - 1;
+            int falseChance = 1;
 
-            if (index > lastIndex)
-                index = lastIndex;
-
-            if (index < 0)
-                index = 0;
-
-            _itemIndex = index;
+            return s_random.Next(falseChance + 1) == 0;
         }
-
-        private void ReadKey()
-        {
-            switch (Console.ReadKey(true).Key)
-            {
-                case MoveSelectionDown:
-                    SetItemIndex(_itemIndex + 1);
-                    break;
-
-                case MoveSelectionUp:
-                    SetItemIndex(_itemIndex - 1);
-                    break;
-
-                case ConfirmSelection:
-                    _actions[_items[_itemIndex]].Invoke();
-                    break;
-            }
-        }
-
-        private void DrawItems()
-        {
-            Console.SetCursorPosition(0, 0);
-
-            for (int i = 0; i < _items.Length; i++)
-                if (i == _itemIndex)
-                    WriteColoredText(_items[i]);
-                else
-                    Console.WriteLine(_items[i]);
-        }
-
-        private void WriteColoredText(string text)
-        {
-            Console.ForegroundColor = _foregroundColor;
-            Console.BackgroundColor = _backgroundColor;
-
-            Console.WriteLine(text);
-
-            Console.ResetColor();
-        }
-
-        private void Exit() =>
-            _isRunning = false;
     }
 }
